@@ -1,14 +1,12 @@
 name:                functional-asteroids
 version:             0.1.0.0
 github:              "RubenBroere/functional-asteroids"
-license:             BSD-3-Clause
+license:             MIT
 author:              "RubenBroere"
 maintainer:          "dev@rubenbroere.com"
-copyright:           "MIT"
 
 extra-source-files:
 - README.md
-- CHANGELOG.md
 
 # Metadata used when publishing your package
 # synopsis:            Short description of your package
@@ -21,6 +19,7 @@ description:         Please see the README on GitHub at <https://github.com/Rube
 
 dependencies:
 - base >= 4.7 && < 5
+- gloss
 
 ghc-options:
 - -Wall
