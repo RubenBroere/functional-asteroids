@@ -23,7 +23,7 @@ source-repository head
 
 library
   exposed-modules:
-      Lib
+      Game
   other-modules:
       Paths_functional_asteroids
   hs-source-dirs:
