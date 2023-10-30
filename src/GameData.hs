@@ -7,6 +7,7 @@ import Player
 makeGameData :: GameData
 makeGameData = GameData
     { pressedKeys = empty 
+    , worldSize = (1280, 720)
     , score = 0
     , player = makePlayer 
     , asteroids = []
@@ -15,3 +16,6 @@ makeGameData = GameData
     , elapsedTime = 0
     , gameState = Paused 
     }
+
+isPaused :: GameData -> Bool
+isPaused gd = gameState gd == Paused

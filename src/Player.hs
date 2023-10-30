@@ -4,41 +4,71 @@ module Player (makePlayer, updatePlayer) where
 
 import Kinematics
 import InputHandler
-import Data
-import Graphics.Gloss.Interface.IO.Game (Key (SpecialKey, Char), SpecialKey (..))
+import Data hiding(updatePosition)
+import Bullet
 
 makePlayer :: Player
 makePlayer = Player {lives=3, angle=0, playerKinematics=makeKinematics (0, 0)}
 
 updatePlayer :: Time -> GameData -> GameData
-updatePlayer dt gd = updatePosition dt $ updateInput dt gd
+updatePlayer dt gd = handleDeath . updatePosition dt $ updateInput dt gd
 
 
 updateInput :: Time -> GameData -> GameData
+updateInput _ gd@GameData{ gameState=Paused } = gd
+
 updateInput dt gd = foldr applyIfPressed gd inputActions
     where
-        applyIfPressed :: ([Key], Time -> GameData -> GameData) -> GameData -> GameData
-        applyIfPressed (keys, action) accData
-            | any (`isKeyPressed` gd) keys = action dt accData
+        applyIfPressed :: (GameData -> Bool, Time -> GameData -> GameData) -> GameData -> GameData
+        applyIfPressed (isPressed, action) accData
+            | isPressed gd = action dt accData
             | otherwise = accData
 
-inputActions :: [([Key], Time -> GameData -> GameData)]
-inputActions = [([Char 'w', SpecialKey KeyUp], forward), ([Char 'd', SpecialKey KeyRight], rotate pi), ([Char 'a', SpecialKey KeyLeft], rotate (-pi))]
+inputActions :: [(GameData -> Bool, Time -> GameData -> GameData)]
+inputActions = [
+    (pressForward, forward),
+    (pressRight, rotate pi),
+    (pressLeft, rotate (-pi)),
+    (pressShoot, shoot)
+    ]
+
+shoot :: Time -> GameData -> GameData
+shoot _ gd@GameData{ player, bullets }  | any (\x -> lifeTime x > 25) bullets = gd
+                                        | otherwise = gd { bullets=newBullet : bullets }
+                                        where
+                                            newBullet = makeBullet player
 
 forward :: Time -> GameData -> GameData
 forward dt gd = gd { player = changeVelocity dt (player gd) }
 
 rotate :: Float -> Time -> GameData -> GameData
-rotate speed dt gd@GameData{ player=p@Player{ angle } } = gd{ player=p{ angle=angle + speed * dt } } 
+rotate speed dt gd@GameData{ player=p@Player{ angle } } = gd{ player=p{ angle=angle + speed * dt } }
+
+
+handleDeath :: GameData -> GameData
+handleDeath gd  | isColliding gd = gd { player=Player{ playerKinematics=makeKinematics (0, 0), angle=0, lives=lives (player gd) - 1 } }
+                | otherwise = gd
+
+isColliding :: GameData -> Bool
+isColliding = isOutOfBounds
+
+
+isOutOfBounds :: GameData -> Bool
+isOutOfBounds gd = rx < -hWidth || rx >= hWidth || ry < -hHeight || ry >= hHeight
+    where
+        (x, y) = position . playerKinematics $ player gd
+        (rx, ry) = (round x, round y)
+        (width, height) = worldSize gd
+        (hWidth, hHeight) = (width `div` 2, height `div` 2)
 
 updatePosition :: Time -> GameData -> GameData
 updatePosition dt gd@GameData{ player } = gd{ player=player{ playerKinematics=newKinematics } }
     where
         newKinematics = deceleratePlayer . clampVelocity maxVelocity $ updateKinematics dt (playerKinematics player)
-        deceleratePlayer    | any (`isKeyPressed` gd) [Char 'w', SpecialKey KeyUp] = id
+        deceleratePlayer    | pressForward gd = id
                             | otherwise = decelerate (dt * deceleration)
-        maxVelocity = 200
-        deceleration = 100
+        maxVelocity = 300
+        deceleration = 200
 
 changeVelocity :: Time -> Player -> Player
 changeVelocity dt player@Player{ playerKinematics, angle } =

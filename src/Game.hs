@@ -3,15 +3,28 @@ module Game ( run ) where
 
 import Graphics.Gloss
 import Data
-import GameData (makeGameData) 
-import InputHandler (handleInput)
+import GameData
+import InputHandler
 import Renderer (drawGame)
 import Player
+import Bullet
+import Graphics.Gloss.Interface.IO.Game
 
 run :: IO ()
-run = play screen black 60 makeGameData drawGame handleInput updateGame
+run = play screen black 120 makeGameData drawGame handleEvents updateGame
     where
-        screen = InWindow "Functional Asteroid" (1280, 720) (0, 0)
+        gameData = makeGameData
+        screenSize = worldSize gameData
+        screen = InWindow "Functional Asteroid" screenSize (0, 0)
 
 updateGame :: Float -> GameData -> GameData
-updateGame dt gd = updatePlayer dt gd 
+updateGame _ gd@GameData{ gameState=Paused } = gd 
+updateGame dt gd = updateComponents dt $ updatePlayer dt gd 
+
+
+handleEvents :: Event -> GameData -> GameData
+handleEvents (EventResize size) gd = gd { worldSize = size }
+handleEvents event gd = handleInput event gd
+
+updateComponents :: Float -> GameData -> GameData
+updateComponents dt gd@GameData{ bullets } = gd { bullets=updateBullets dt bullets }

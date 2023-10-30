@@ -8,8 +8,17 @@ import Graphics.Gloss
 type Score    = Int
 type Time     = Float
 
+class Drawable a where
+    draw :: a -> Picture
+
+class Physics a where
+    applyForce :: Float -> a -> a
+    updatePosition :: Float -> a -> a
+
+
 data GameData = GameData
     { pressedKeys :: Set Key 
+    , worldSize  :: (Int, Int)
     , score       :: Score
     , player      :: Player
     , asteroids   :: [Asteroid]
