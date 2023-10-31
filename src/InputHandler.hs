@@ -1,33 +1,39 @@
-{-# LANGUAGE NamedFieldPuns #-}
-{-# OPTIONS_GHC -Wno-missing-export-lists #-}
-
-module InputHandler where
+module InputHandler (PressedKeys, makeKeys, handleInput, isAnyPressed, pressForward, pressLeft, pressRight, pressShoot) where
 
 import Graphics.Gloss.Interface.IO.Game
-import Data.Set (insert, delete, member)
-import Data
+import Data.Set (insert, delete, member, Set)
 
-handleInput :: Event -> GameData -> GameData
-handleInput (EventKey k Down _ _) gd@GameData{ pressedKeys } = gd { pressedKeys = insert k pressedKeys }
-handleInput (EventKey k Up _ _) gd@GameData{ pressedKeys } = handleKeyUp k gd { pressedKeys = delete k pressedKeys }
-handleInput _ gd = gd -- Ignore non-keypresses for simplicity
+-- Hiding implementation
+newtype PressedKeys = Keys (Set Key)
 
-isAnyPressed :: [Key] -> GameData -> Bool
-isAnyPressed keys gd = any (`member` pressedKeys gd) keys
+makeKeys :: PressedKeys
+makeKeys = Keys mempty
 
-handleKeyUp :: Key -> GameData -> GameData
-handleKeyUp (Char 'p') gd@GameData{ gameState=Game } = gd { gameState=Paused }
-handleKeyUp (SpecialKey KeySpace) gd = gd { gameState=Game }
-handleKeyUp _ gd = gd
+handleInput :: Event -> PressedKeys -> PressedKeys
+handleInput (EventKey k Down _ _) (Keys set) = Keys (insert k set)
+handleInput (EventKey k Up _ _) (Keys set) = Keys (delete k set)
+handleInput _ keys = keys -- Ignore non-keypresses for simplicity
 
-pressForward :: GameData -> Bool
+isAnyPressed :: [Key] -> PressedKeys -> Bool
+isAnyPressed keys (Keys set) = any (`member` set) keys
+
+--handleKeyUp :: Key -> Set Key -> Set Key
+--handleKeyUp (Char 'p') pressedKeys = gd { gameState=Paused }
+--handleKeyUp (SpecialKey KeySpace) gd = gd { gameState=Game }
+--handleKeyUp (SpecialKey KeyEnter) gd = gd { asteroids=asteroid:asteroids gd, stdGen=newGen }
+--    where
+--        (asteroid, newGen) = generateAsteroid (worldSize gd) (stdGen gd)
+-- handleKeyUp _ gd = gd
+
+pressForward :: PressedKeys -> Bool
 pressForward = isAnyPressed [Char 'w', SpecialKey KeyUp]
 
-pressLeft :: GameData -> Bool
+pressLeft :: PressedKeys -> Bool
 pressLeft = isAnyPressed [Char 'a', SpecialKey KeyLeft]
 
-pressRight :: GameData -> Bool
+pressRight :: PressedKeys -> Bool
 pressRight = isAnyPressed [Char 'd', SpecialKey KeyRight]
 
-pressShoot :: GameData -> Bool
+pressShoot :: PressedKeys -> Bool
 pressShoot = isAnyPressed [SpecialKey KeySpace]
+

@@ -23,14 +23,16 @@ source-repository head
 
 library
   exposed-modules:
+      Asteroid
       Bullet
       Data
       Game
-      GameData
       InputHandler
       Kinematics
       Player
       Renderer
+      Types
+      World
   other-modules:
       Paths_functional_asteroids
   hs-source-dirs:
@@ -40,6 +42,7 @@ library
       base >=4.7 && <5
     , containers
     , gloss
+    , random
   default-language: Haskell2010
 
 executable functional-asteroids-exe
@@ -54,6 +57,7 @@ executable functional-asteroids-exe
     , containers
     , functional-asteroids
     , gloss
+    , random
   default-language: Haskell2010
 
 test-suite functional-asteroids-test
@@ -69,4 +73,5 @@ test-suite functional-asteroids-test
     , containers
     , functional-asteroids
     , gloss
+    , random
   default-language: Haskell2010

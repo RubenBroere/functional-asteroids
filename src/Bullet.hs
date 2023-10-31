@@ -1,19 +1,31 @@
 {-# LANGUAGE NamedFieldPuns #-}
-module Bullet (makeBullet, updateBullet, updateBullets) where
+module Bullet (Bullet, makeBullet, updateBullet, updateBullets) where
 
-import Data
+import Types
 import Kinematics
 
-makeBullet :: Player -> Bullet
-makeBullet Player{ angle, playerKinematics=KinematicInfo{ velocity, position } } =
-    Bullet {lifeTime=30, bulletKinematics=KinematicInfo {velocity=calcVelocity angle velocity, position=calcPosition angle position}}
+data Bullet = Bullet
+    { lifeTime         :: Time
+    , bulletKinematics :: KinematicInfo
+    }
 
-calcVelocity :: Float -> (Float, Float) -> (Float, Float)
+instance Body Bullet where
+    position = position . bulletKinematics
+    velocity = velocity . bulletKinematics
+
+makeBullet :: Vector -> Vector -> Float -> Bullet
+makeBullet pos vel angle =
+    Bullet {lifeTime=30, bulletKinematics=setVelocity bulletVel $ makeKinematics bulletPos} 
+    where
+        bulletVel = calcVelocity angle vel
+        bulletPos = calcPosition angle pos
+
+calcVelocity :: Float -> Vector -> Vector 
 calcVelocity angle (dx, dy) = (dx + baseVelocity * sin angle, dy + baseVelocity * cos angle)
     where
         baseVelocity = 1000
 
-calcPosition :: Float -> (Float, Float) -> (Float, Float)
+calcPosition :: Float -> Vector -> Vector 
 calcPosition angle (x, y) = (x + noseDistance * sin angle, y + noseDistance * cos angle)
     where
         noseDistance = 30

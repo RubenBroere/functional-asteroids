@@ -1,18 +1,26 @@
 {-# LANGUAGE NamedFieldPuns #-}
+module Player (Player, makePlayer, handleBounds, handleDeath, hasSpawnProtection, rotate, updatePosition, acceleratePlayer, deceleratePlayer, degradeRespawnShield, rotation, getLives) where
 
-module Player (makePlayer, updatePlayer) where
-
+import Types
 import Kinematics
-import InputHandler
-import Data hiding(updatePosition)
-import Bullet
+
+data Player = Player
+    { lives            :: Int
+    , angle            :: Float
+    , playerKinematics :: KinematicInfo
+    , respawnShield :: Time
+    }
+
+instance Body Player where
+    position = position . playerKinematics
+    velocity = velocity . playerKinematics
 
 makePlayer :: Player
-makePlayer = Player {lives=3, angle=0, playerKinematics=makeKinematics (0, 0)}
+makePlayer = Player {lives=3, angle=0, playerKinematics=makeKinematics (0, 0), respawnShield=10}
 
+{-
 updatePlayer :: Time -> GameData -> GameData
-updatePlayer dt gd = handleDeath . updatePosition dt $ updateInput dt gd
-
+updatePlayer dt gd = handleBounds . handleDeath . degradeRespawnShield dt $ updatePosition dt $ updateInput dt gd
 
 updateInput :: Time -> GameData -> GameData
 updateInput _ gd@GameData{ gameState=Paused } = gd
@@ -31,50 +39,68 @@ inputActions = [
     (pressLeft, rotate (-pi)),
     (pressShoot, shoot)
     ]
+-}
+-- shoot :: Time -> Player -> GameData
+-- shoot _ gd@GameData{ player, bullets }  | any (\x -> lifeTime x > 25) bullets = gd
+--                                         | otherwise = gd { bullets=newBullet : bullets }
+--                                        where
+--                                            newBullet = makeBullet player
 
-shoot :: Time -> GameData -> GameData
-shoot _ gd@GameData{ player, bullets }  | any (\x -> lifeTime x > 25) bullets = gd
-                                        | otherwise = gd { bullets=newBullet : bullets }
-                                        where
-                                            newBullet = makeBullet player
+rotation :: Player -> Float
+rotation = angle
 
-forward :: Time -> GameData -> GameData
-forward dt gd = gd { player = changeVelocity dt (player gd) }
+getLives :: Player -> Int
+getLives = lives
 
-rotate :: Float -> Time -> GameData -> GameData
-rotate speed dt gd@GameData{ player=p@Player{ angle } } = gd{ player=p{ angle=angle + speed * dt } }
+-- Movement
 
+rotate :: Float -> Time -> Player -> Player
+rotate speed dt p = p{ angle=angle p + speed * dt }
 
-handleDeath :: GameData -> GameData
-handleDeath gd  | isColliding gd = gd { player=Player{ playerKinematics=makeKinematics (0, 0), angle=0, lives=lives (player gd) - 1 } }
-                | otherwise = gd
-
-isColliding :: GameData -> Bool
-isColliding = isOutOfBounds
-
-
-isOutOfBounds :: GameData -> Bool
-isOutOfBounds gd = rx < -hWidth || rx >= hWidth || ry < -hHeight || ry >= hHeight
+handleBounds :: (Int, Int) -> Player -> Player
+handleBounds (width, height) p@Player{ playerKinematics=kin }
+    | rx < -hWidth = p{ playerKinematics=setPosition (x + fromIntegral width, y) kin }
+    | rx > hWidth = p{ playerKinematics=setPosition (x - fromIntegral width, y) kin }
+    | ry < -hHeight = p{ playerKinematics=setPosition (x, y + fromIntegral height) kin }
+    | ry > hHeight = p{ playerKinematics=setPosition (x, y - fromIntegral height) kin }
+    | otherwise = p 
     where
-        (x, y) = position . playerKinematics $ player gd
+        (x, y) = position p
         (rx, ry) = (round x, round y)
-        (width, height) = worldSize gd
         (hWidth, hHeight) = (width `div` 2, height `div` 2)
 
-updatePosition :: Time -> GameData -> GameData
-updatePosition dt gd@GameData{ player } = gd{ player=player{ playerKinematics=newKinematics } }
+deceleratePlayer :: Time -> Player -> Player
+deceleratePlayer dt player = player{ playerKinematics=decelerate deceleration $ playerKinematics player }
     where
-        newKinematics = deceleratePlayer . clampVelocity maxVelocity $ updateKinematics dt (playerKinematics player)
-        deceleratePlayer    | pressForward gd = id
-                            | otherwise = decelerate (dt * deceleration)
-        maxVelocity = 300
-        deceleration = 200
+        deceleration = dt * 200
 
-changeVelocity :: Time -> Player -> Player
-changeVelocity dt player@Player{ playerKinematics, angle } =
-    player{ playerKinematics=playerKinematics{ velocity = calcVelocity dt angle (velocity playerKinematics) } }
-
-calcVelocity :: Time -> Float -> (Float, Float) -> (Float, Float)
-calcVelocity dt angle (x, y) = (x + speed * dt * sin angle, y + speed * dt * cos angle)
+acceleratePlayer :: Time -> Player -> Player
+acceleratePlayer dt player@Player{ playerKinematics, angle } =
+    player{ playerKinematics=setVelocity newVelocity playerKinematics }
     where
+        newVelocity = (x + speed * dt * sin angle, y + speed * dt * cos angle) 
+        (x, y) = velocity player
         speed = 500
+
+updatePosition :: Time -> Player -> Player
+updatePosition dt player@Player{ playerKinematics } = player{ playerKinematics=newKinematics }
+    where
+        newKinematics = clampVelocity maxVelocity $ updateKinematics dt playerKinematics
+        maxVelocity = 300
+
+-- Respawning 
+
+handleDeath :: Player -> Player
+handleDeath player  | hasSpawnProtection player = makePlayer{ lives=lives player - 1 }
+                    | otherwise = player
+
+degradeRespawnShield :: Time -> Player -> Player
+degradeRespawnShield dt player@Player{ respawnShield=s }
+    | s > 0 = player{ respawnShield = s - dt * degrationSpeed }
+    | otherwise = player{ respawnShield = 0  }
+    where
+        degrationSpeed = 10
+
+hasSpawnProtection :: Player -> Bool
+hasSpawnProtection = (0 ==) . respawnShield
+

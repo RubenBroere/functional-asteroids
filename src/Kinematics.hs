@@ -1,17 +1,32 @@
-module Kinematics (makeKinematics, updateKinematics, clampVelocity, decelerate) where
+module Kinematics (KinematicInfo, makeKinematics, updateKinematics, clampVelocity, decelerate, setVelocity, setPosition) where
 
-import Data
+import Types
 
-makeKinematics :: (Float, Float) -> KinematicInfo
-makeKinematics pos = KinematicInfo {velocity=(0, 0), position=pos}
+data KinematicInfo = KinematicInfo
+    { velocityInfo :: Vector 
+    , positionInfo :: Vector 
+    }
+
+instance Body KinematicInfo where
+    velocity = velocityInfo
+    position = positionInfo
+
+makeKinematics :: Vector -> KinematicInfo
+makeKinematics pos = KinematicInfo {velocityInfo=(0, 0), positionInfo=pos}
+
+setVelocity :: Vector -> KinematicInfo -> KinematicInfo
+setVelocity (x, y) kin = kin{ velocityInfo=(x, y) }  
+
+setPosition :: Vector -> KinematicInfo -> KinematicInfo
+setPosition (x, y) kin = kin{ velocityInfo=(x, y) }
 
 updateKinematics :: Time -> KinematicInfo -> KinematicInfo
-updateKinematics dt kin@(KinematicInfo { position=(x, y), velocity=(dx, dy)}) = kin { position = updatedPosition } 
+updateKinematics dt kin@(KinematicInfo { positionInfo=(x, y), velocityInfo=(dx, dy)}) = kin { positionInfo = updatedPosition } 
     where
         updatedPosition = (x + dt * dx, y + dt * dy) 
 
 clampVelocity :: Float -> KinematicInfo -> KinematicInfo
-clampVelocity maxSpeed kin@KinematicInfo{ velocity=(x, y) } = kin{ velocity=clampedVelocity } 
+clampVelocity maxSpeed kin@KinematicInfo{ velocityInfo=(x, y) } = kin{ velocityInfo=clampedVelocity } 
     where
         speed = sqrt (x**2 + y**2)
 
@@ -19,7 +34,7 @@ clampVelocity maxSpeed kin@KinematicInfo{ velocity=(x, y) } = kin{ velocity=clam
                         | otherwise = velocity kin
 
 decelerate :: Float -> KinematicInfo -> KinematicInfo
-decelerate deceleration kin@KinematicInfo { velocity=(x, y) } = kin { velocity=newVelocity }
+decelerate deceleration kin@KinematicInfo { velocityInfo=(x, y) } = kin { velocityInfo=newVelocity }
     where
         acceleration = sqrt (x**2 + y**2)
         targetAcceleration = acceleration - deceleration

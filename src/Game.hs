@@ -3,28 +3,38 @@ module Game ( run ) where
 
 import Graphics.Gloss
 import Data
-import GameData
 import InputHandler
 import Renderer (drawGame)
 import Player
 import Bullet
 import Graphics.Gloss.Interface.IO.Game
+import World
 
 run :: IO ()
-run = play screen black 120 makeGameData drawGame handleEvents updateGame
+run = play screen black 120 makeWorld drawGame handleEvents Game.updateGame
     where
-        gameData = makeGameData
+        gameData = makeWorld
         screenSize = worldSize gameData
         screen = InWindow "Functional Asteroid" screenSize (0, 0)
 
-updateGame :: Float -> GameData -> GameData
-updateGame _ gd@GameData{ gameState=Paused } = gd 
-updateGame dt gd = updateComponents dt $ updatePlayer dt gd 
+updateGame :: Float -> World -> World
+updateGame _ w@World{ gameState=Paused } = w 
+updateGame _ w@World{ gameState=GameOver } = w 
+updateGame dt w = updateComponents dt w 
 
+-- Input handling
 
-handleEvents :: Event -> GameData -> GameData
-handleEvents (EventResize size) gd = gd { worldSize = size }
-handleEvents event gd = handleInput event gd
+handleEvents :: Event -> World -> World
+handleEvents (EventResize size) w = w { worldSize = size }
+handleEvents event@(EventKey k _ _ _) w@World{ pressedKeys } = handleKeyUps k $ w{ pressedKeys=handleInput event pressedKeys }
+handleEvents _ w = w
 
-updateComponents :: Float -> GameData -> GameData
-updateComponents dt gd@GameData{ bullets } = gd { bullets=updateBullets dt bullets }
+handleKeyUps :: Key -> World -> World
+handleKeyUps (SpecialKey KeySpace) w = w { gameState=Game }
+handleKeyUps _ w = w
+
+updateComponents :: Float -> World -> World
+updateComponents _ w@World{ player }
+    | getLives player == 0 = w { gameState=GameOver }
+    | otherwise = w
+updateComponents dt w@World{ bullets, elapsedTime } = w { bullets=updateBullets dt bullets, elapsedTime=elapsedTime + dt }
