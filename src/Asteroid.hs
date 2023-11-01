@@ -1,4 +1,4 @@
-module Asteroid (Asteroid, AsteroidSize, generateAsteroid, updateAsteroids, getAsteroidSize) where
+module Asteroid (Asteroid, AsteroidSize, generateAsteroid, updateAsteroid, getAsteroidSize) where
 
 import System.Random
 
@@ -13,6 +13,9 @@ data Asteroid = Asteroid
 instance Body Asteroid where
     position = velocity . asteroidKinematics  
     velocity = velocity . asteroidKinematics
+
+instance Drawable Asteroid where
+    draw = undefined  
 
 data AsteroidSize = Small | Medium | Large
     deriving (Eq, Ord, Enum)
@@ -32,9 +35,6 @@ generateAsteroid (width, height) gen0 = (asteroid, gen5)
         (dy, gen4) = randomR (0.0, 100.0) gen3
         (s, gen5) = randomR (0, 2) gen4
         (hWidth, hHeight) = (fromIntegral $ width `div` 2, fromIntegral $ height `div` 2)
-
-updateAsteroids :: Time -> [Asteroid] -> [Asteroid]
-updateAsteroids dt = map (updateAsteroid dt)
 
 updateAsteroid :: Time -> Asteroid -> Asteroid
 updateAsteroid dt asteroid@Asteroid{ asteroidKinematics=kin } = asteroid { asteroidKinematics=updateKinematics dt kin } 

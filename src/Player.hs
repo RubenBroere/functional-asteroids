@@ -1,8 +1,23 @@
 {-# LANGUAGE NamedFieldPuns #-}
-module Player (Player, makePlayer, handleBounds, handleDeath, hasSpawnProtection, rotate, updatePosition, acceleratePlayer, deceleratePlayer, degradeRespawnShield, rotation, getLives) where
+module Player 
+    ( Player
+    , makePlayer
+    , handleBounds
+    , handleDeath
+    , hasSpawnProtection
+    , rotate
+    , updatePosition
+    , acceleratePlayer
+    , deceleratePlayer
+    , degradeRespawnShield
+    , getLives
+    ) where
 
 import Types
 import Kinematics
+import Renderer
+import Graphics.Gloss hiding(rotate) 
+import Sprites
 
 data Player = Player
     { lives            :: Int
@@ -10,6 +25,12 @@ data Player = Player
     , playerKinematics :: KinematicInfo
     , respawnShield :: Time
     }
+
+instance Drawable Player where
+    draw player = translateBody player $ rotateRadian (angle player) $ Color spriteColor playerSprite
+        where
+            spriteColor | hasSpawnProtection player = greyN 0.4
+                        | otherwise = white
 
 instance Body Player where
     position = position . playerKinematics
@@ -45,9 +66,6 @@ inputActions = [
 --                                         | otherwise = gd { bullets=newBullet : bullets }
 --                                        where
 --                                            newBullet = makeBullet player
-
-rotation :: Player -> Float
-rotation = angle
 
 getLives :: Player -> Int
 getLives = lives

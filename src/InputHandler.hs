@@ -1,4 +1,4 @@
-module InputHandler (PressedKeys, makeKeys, handleInput, isAnyPressed, pressForward, pressLeft, pressRight, pressShoot) where
+module InputHandler (PressedKeys, makeKeys, handleInput, pressForward, pressLeft, pressRight, pressShoot) where
 
 import Graphics.Gloss.Interface.IO.Game
 import Data.Set (insert, delete, member, Set)
@@ -14,8 +14,14 @@ handleInput (EventKey k Down _ _) (Keys set) = Keys (insert k set)
 handleInput (EventKey k Up _ _) (Keys set) = Keys (delete k set)
 handleInput _ keys = keys -- Ignore non-keypresses for simplicity
 
+isKeyUp :: Key -> Event -> Bool
+isKeyUp key (EventKey k Up _ _) = key == k
+
+isPressed :: Key -> PressedKeys -> Bool
+isPressed key (Keys set) = member key set
+
 isAnyPressed :: [Key] -> PressedKeys -> Bool
-isAnyPressed keys (Keys set) = any (`member` set) keys
+isAnyPressed keys pressedKeys = any (`isPressed` pressedKeys) keys
 
 --handleKeyUp :: Key -> Set Key -> Set Key
 --handleKeyUp (Char 'p') pressedKeys = gd { gameState=Paused }
@@ -24,6 +30,8 @@ isAnyPressed keys (Keys set) = any (`member` set) keys
 --    where
 --        (asteroid, newGen) = generateAsteroid (worldSize gd) (stdGen gd)
 -- handleKeyUp _ gd = gd
+
+-- Key maps
 
 pressForward :: PressedKeys -> Bool
 pressForward = isAnyPressed [Char 'w', SpecialKey KeyUp]
@@ -35,5 +43,7 @@ pressRight :: PressedKeys -> Bool
 pressRight = isAnyPressed [Char 'd', SpecialKey KeyRight]
 
 pressShoot :: PressedKeys -> Bool
-pressShoot = isAnyPressed [SpecialKey KeySpace]
+pressShoot = isPressed (SpecialKey KeySpace) 
 
+pressPlay :: Event -> Bool
+pressPlay = isKeyUp (SpecialKey KeySpace)

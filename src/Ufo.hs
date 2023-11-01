@@ -1,11 +1,6 @@
-{-# OPTIONS_GHC -Wno-missing-export-lists #-}
-module Data where
+module Ufo (Ufo) where
 
 import Kinematics
-
-data GameState = Game | Paused | GameOver
-    deriving (Eq)
-
 
 data Ufo = Ufo
     { aimTarget     :: AimTarget

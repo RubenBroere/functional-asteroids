@@ -23,7 +23,7 @@ setPosition (x, y) kin = kin{ velocityInfo=(x, y) }
 updateKinematics :: Time -> KinematicInfo -> KinematicInfo
 updateKinematics dt kin@(KinematicInfo { positionInfo=(x, y), velocityInfo=(dx, dy)}) = kin { positionInfo = updatedPosition } 
     where
-        updatedPosition = (x + dt * dx, y + dt * dy) 
+        updatedPosition = (x + dt * dx, y + dt * dy)
 
 clampVelocity :: Float -> KinematicInfo -> KinematicInfo
 clampVelocity maxSpeed kin@KinematicInfo{ velocityInfo=(x, y) } = kin{ velocityInfo=clampedVelocity } 

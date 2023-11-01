@@ -25,13 +25,15 @@ library
   exposed-modules:
       Asteroid
       Bullet
-      Data
+      Controller
       Game
       InputHandler
       Kinematics
       Player
       Renderer
+      Sprites
       Types
+      Ufo
       World
   other-modules:
       Paths_functional_asteroids
