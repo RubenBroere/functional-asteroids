@@ -1,39 +1,41 @@
 {-# LANGUAGE NamedFieldPuns #-}
-module Bullet (Bullet, makeBullet, updateBullet, isExpired) where
+module Bullet (Bullet, makeBullet, isExpired) where
 
 import Types
 import Kinematics
-import Graphics.Gloss (Picture (..))
+import Graphics.Gloss (Picture (..), circleSolid)
 import Graphics.Gloss.Data.Color
 import Renderer
 
 data Bullet = Bullet
     { lifeTime         :: Time
-    , bulletKinematics :: KinematicInfo
+    , kinematics :: KinematicInfo
     }
 
 instance Body Bullet where
-    position = position . bulletKinematics
-    velocity = velocity . bulletKinematics
+    position = position . kinematics
+    velocity = velocity . kinematics
+    update = updateBullet
+    size _ = 2
 
 instance Drawable Bullet where
-    draw b = translateBody b $ Color white $ Circle 2
+    draw b = translateBody b $ Color white $ circleSolid 2
 
 makeBullet :: Vector -> Vector -> Float -> Bullet
 makeBullet pos vel angle =
-    Bullet {lifeTime=30, bulletKinematics=setVelocity bulletVel $ makeKinematics bulletPos} 
+    Bullet {lifeTime=30, kinematics=setVelocity bulletVel $ makeKinematics bulletPos} 
     where
         bulletVel = calcVelocity angle vel
         bulletPos = calcPosition angle pos
 
 updateBullet :: Float -> Bullet -> Bullet
-updateBullet dt bullet@Bullet{ bulletKinematics, lifeTime } = 
-    bullet{ bulletKinematics=updateKinematics dt bulletKinematics, lifeTime=lifeTime-dt*degradationSpeed}
+updateBullet dt bullet@Bullet{ kinematics, lifeTime } =
+    bullet{ kinematics=updateKinematics dt kinematics, lifeTime=max (lifeTime-dt*degradationSpeed) 0}
     where
-        degradationSpeed = 20
+        degradationSpeed = 50
 
 isExpired :: Bullet -> Bool
-isExpired = (< 0) . lifeTime
+isExpired = (== 0) . lifeTime
 
 calcVelocity :: Float -> Vector -> Vector 
 calcVelocity angle (dx, dy) = (dx + baseVelocity * sin angle, dy + baseVelocity * cos angle)

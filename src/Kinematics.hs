@@ -10,6 +10,8 @@ data KinematicInfo = KinematicInfo
 instance Body KinematicInfo where
     velocity = velocityInfo
     position = positionInfo
+    update = updateKinematics
+    size _ = 0
 
 makeKinematics :: Vector -> KinematicInfo
 makeKinematics pos = KinematicInfo {velocityInfo=(0, 0), positionInfo=pos}
@@ -18,7 +20,7 @@ setVelocity :: Vector -> KinematicInfo -> KinematicInfo
 setVelocity (x, y) kin = kin{ velocityInfo=(x, y) }  
 
 setPosition :: Vector -> KinematicInfo -> KinematicInfo
-setPosition (x, y) kin = kin{ velocityInfo=(x, y) }
+setPosition (x, y) kin = kin{ positionInfo=(x, y) }
 
 updateKinematics :: Time -> KinematicInfo -> KinematicInfo
 updateKinematics dt kin@(KinematicInfo { positionInfo=(x, y), velocityInfo=(dx, dy)}) = kin { positionInfo = updatedPosition } 

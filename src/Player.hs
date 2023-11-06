@@ -5,12 +5,14 @@ module Player
     , handleBounds
     , handleDeath
     , hasSpawnProtection
-    , rotate
-    , updatePosition
+    , rotatePlayer
     , acceleratePlayer
     , deceleratePlayer
     , degradeRespawnShield
     , getLives
+    , rotation
+    , reloading
+    , shoot 
     ) where
 
 import Types
@@ -24,6 +26,7 @@ data Player = Player
     , angle            :: Float
     , playerKinematics :: KinematicInfo
     , respawnShield :: Time
+    , reloadTime :: Time
     }
 
 instance Drawable Player where
@@ -35,45 +38,34 @@ instance Drawable Player where
 instance Body Player where
     position = position . playerKinematics
     velocity = velocity . playerKinematics
+    update = updatePosition
+    size _ = 15
 
 makePlayer :: Player
-makePlayer = Player {lives=3, angle=0, playerKinematics=makeKinematics (0, 0), respawnShield=10}
-
-{-
-updatePlayer :: Time -> GameData -> GameData
-updatePlayer dt gd = handleBounds . handleDeath . degradeRespawnShield dt $ updatePosition dt $ updateInput dt gd
-
-updateInput :: Time -> GameData -> GameData
-updateInput _ gd@GameData{ gameState=Paused } = gd
-
-updateInput dt gd = foldr applyIfPressed gd inputActions
-    where
-        applyIfPressed :: (GameData -> Bool, Time -> GameData -> GameData) -> GameData -> GameData
-        applyIfPressed (isPressed, action) accData
-            | isPressed gd = action dt accData
-            | otherwise = accData
-
-inputActions :: [(GameData -> Bool, Time -> GameData -> GameData)]
-inputActions = [
-    (pressForward, forward),
-    (pressRight, rotate pi),
-    (pressLeft, rotate (-pi)),
-    (pressShoot, shoot)
-    ]
--}
--- shoot :: Time -> Player -> GameData
--- shoot _ gd@GameData{ player, bullets }  | any (\x -> lifeTime x > 25) bullets = gd
---                                         | otherwise = gd { bullets=newBullet : bullets }
---                                        where
---                                            newBullet = makeBullet player
+makePlayer = Player
+    { lives=3
+    , angle=0
+    , playerKinematics=makeKinematics (0, 0)
+    , respawnShield=10
+    , reloadTime=0
+    }
 
 getLives :: Player -> Int
 getLives = lives
 
+rotation :: Player -> Float
+rotation = angle
+
+reloading :: Player -> Bool
+reloading = (> 0) . reloadTime 
+
+shoot :: Player -> Player
+shoot p = p { reloadTime=50 }
+
 -- Movement
 
-rotate :: Float -> Time -> Player -> Player
-rotate speed dt p = p{ angle=angle p + speed * dt }
+rotatePlayer :: Float -> Time -> Player -> Player
+rotatePlayer speed dt p = p{ angle=angle p + speed * dt }
 
 handleBounds :: (Int, Int) -> Player -> Player
 handleBounds (width, height) p@Player{ playerKinematics=kin }
@@ -101,7 +93,7 @@ acceleratePlayer dt player@Player{ playerKinematics, angle } =
         speed = 500
 
 updatePosition :: Time -> Player -> Player
-updatePosition dt player@Player{ playerKinematics } = player{ playerKinematics=newKinematics }
+updatePosition dt player@Player{ playerKinematics } = degradeRespawnShield dt $ player{ playerKinematics=newKinematics, reloadTime=max (reloadTime player - dt * 100) 0 }
     where
         newKinematics = clampVelocity maxVelocity $ updateKinematics dt playerKinematics
         maxVelocity = 300
@@ -109,16 +101,14 @@ updatePosition dt player@Player{ playerKinematics } = player{ playerKinematics=n
 -- Respawning 
 
 handleDeath :: Player -> Player
-handleDeath player  | hasSpawnProtection player = makePlayer{ lives=lives player - 1 }
-                    | otherwise = player
+handleDeath p   | hasSpawnProtection p = p
+                | otherwise = makePlayer{ lives=lives p - 1 }
 
 degradeRespawnShield :: Time -> Player -> Player
-degradeRespawnShield dt player@Player{ respawnShield=s }
-    | s > 0 = player{ respawnShield = s - dt * degrationSpeed }
-    | otherwise = player{ respawnShield = 0  }
+degradeRespawnShield dt player@Player{ respawnShield=s } = player{ respawnShield=max 0 $ s - dt * degrationSpeed } 
     where
         degrationSpeed = 10
 
 hasSpawnProtection :: Player -> Bool
-hasSpawnProtection = (0 ==) . respawnShield
+hasSpawnProtection = (> 0) . respawnShield
 
