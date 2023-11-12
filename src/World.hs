@@ -46,18 +46,21 @@ makeWorld screenSize = World
 instance Drawable World where
     draw w = Pictures
         [ drawHud w
-        , draw $ player w, Pictures $ map draw $ asteroids w
-        , Pictures $ map draw $ bullets w]
+        , draw $ player w
+        , drawAll $ asteroids w
+        , drawAll $ bullets w
+        , drawAll $ ufos w]
 
 drawHud :: World -> Picture
-drawHud w = Pictures [topLeft screen $ drawLives lives, bottomLeft screen $ drawBanner $ show state]
+drawHud w = Pictures [topLeft screen $ drawLives lives, bottomLeft screen $ drawBanner $ show state, topLeft screen scoreText]
     where
         screen = worldSize w
         lives = getLives $ player w
         state = gameState w
+        scoreText = Translate 10 (-30) $ Scale 0.2 0.2 $ Color white $ Text $ show $ score w
 
 drawLives :: Int -> Picture
-drawLives lives = Color white $ Pictures [Translate (15 + fromIntegral x*20) (-20) $ Scale 0.5 0.5 playerSprite | x <- [0..(lives-1)]]
+drawLives lives = Color white $ Pictures [Translate (15 + fromIntegral x*20) (-60) $ Scale 0.5 0.5 playerSprite | x <- [0..(lives-1)]]
 
 drawBanner :: String -> Picture
 drawBanner str = Translate 10 20 $ Color white $ Scale 0.5 0.5 $ Text str
@@ -67,7 +70,7 @@ drawBanner str = Translate 10 20 $ Color white $ Scale 0.5 0.5 $ Text str
 updateWorld :: Time -> World -> World
 updateWorld _ w@World{ gameState=Paused } = w
 updateWorld _ w@World{ gameState=GameOver } = w
-updateWorld dt world = updateSteps dt world [applyInput, updatePlayer, updateAsteroids, updateBullets, updateElapsedTime, updateGameState]
+updateWorld dt world = updateSteps dt world [applyInput, updatePlayer, updateAsteroids, updateBullets, updateElapsedTime, updateGameState, updateUfos]
 
 updateSteps :: Time -> World -> [Time -> World -> World] -> World
 updateSteps dt = foldr (\component w -> component dt w)
@@ -114,7 +117,9 @@ handlePlayerDeath w | playerIsCol w = w { player=handleDeath (player w) }
                     | otherwise = w
 
 playerIsCol :: World -> Bool
-playerIsCol w = any (isCollision $ player w) $ asteroids w
+playerIsCol w = isCollisions (player w) (asteroids w) ||
+                isCollisions (player w) (bullets w) ||
+                isCollisions (player w) (ufos w)
 
 -- Input Handling
 
@@ -138,7 +143,7 @@ inputActions = [
 
 updateAsteroids :: Time -> World -> World
 updateAsteroids dt world = killHitAsteroids . handleSpawntimer $ world
-    { asteroids=map (update dt) $ filter (not . isGarbage (worldSize world)) $ asteroids world }
+    { asteroids=updateAll dt $ filter (not . isGarbage (worldSize world)) $ asteroids world }
 
 handleSpawntimer :: World -> World
 handleSpawntimer w  | canSpawnMore (asteroids w) = spawnAsteroid w
@@ -150,24 +155,69 @@ spawnAsteroid w@World{ asteroids } = w{ asteroids=asteroid:asteroids, stdGen=gen
         (asteroid, gen) = generateAsteroid (worldSize w) (stdGen w)
 
 killHitAsteroids :: World -> World
-killHitAsteroids w@World{ bullets, asteroids } = w { bullets=newBullets, asteroids=newAsteroids, stdGen=newGen }
+killHitAsteroids w@World{ bullets, asteroids } = w { bullets=newBullets, asteroids=newAsteroids, stdGen=newGen, score=round points + score w }
     where
         newBullets = filter (\x -> not (isCollisions x asteroids)) bullets
         newAsteroids = splitRoids ++ filter (\x -> not (isCollisions x bullets)) asteroids
         (splitRoids, newGen) = foldr acc ([], stdGen w) hitAsteroids
         hitAsteroids = filter (`isCollisions` bullets) asteroids
+        points = foldr (\x y -> size x + y) 0 hitAsteroids
 
         acc :: Asteroid -> ([Asteroid], StdGen) -> ([Asteroid], StdGen)
-        acc a0 (as, gen0) = maybe (as, gen0) (combine as) (split a0 gen0) 
+        acc a0 (as, gen0) = maybe (as, gen0) (combine as) (split a0 gen0)
 
         combine :: [Asteroid] -> (Asteroid, Asteroid, StdGen) -> ([Asteroid], StdGen)
         combine as (a1, a2, gen) = (a1:a2:as, gen)
+
+-- Ufo
+
+updateUfos :: Time -> World -> World
+updateUfos dt = ufoShooting . killHitUfos . handleUfoSpawning . updateUfoPositions dt
+
+handleUfoSpawning :: World -> World
+handleUfoSpawning w
+    | length (ufos w) < 2 = w{ ufos=ufo:ufos w, stdGen=gen2 }
+    | otherwise = w
+    where
+        (ufo, gen2) = generateUfo (worldSize w) (stdGen w) TargetPlayer
+
+updateUfoPositions :: Time -> World -> World
+updateUfoPositions dt w = w{ ufos=ufos', stdGen=rnd' }
+    where
+        (ufos', rnd') = moveToTargets (worldSize w) (stdGen w) $ updateAll dt $ ufos w
+
+killHitUfos :: World -> World
+killHitUfos w = w{ bullets=bullets', ufos=ufos', score=score w + points }
+    where
+        bullets' = filter (\x -> not $ isCollisions x $ ufos w) $ bullets w
+        ufos' = filter (\x -> not $ isCollisions x $ bullets w) $ ufos w
+        points = (length (ufos w) - length ufos') * 100
+
+ufoShooting :: World -> World
+ufoShooting w = w{ bullets=newBullets ++ bullets w, stdGen=rnd, ufos=ufos' }
+    where
+        (newBullets, rnd) = foldr acc ([], stdGen w) $ ufos w
+        ufos' = map (\x -> (if ufoIsReloading x then x else ufoShoot x)) $ ufos w
+
+        acc :: Ufo -> ([Bullet], StdGen) -> ([Bullet], StdGen)
+        acc ufo (bullets', rnd')
+            | ufoIsReloading ufo = (bullets', rnd')
+            | otherwise = (bullet:bullets', rnd'')
+            where
+                (bullet, rnd'') = spawnUfoBullet rnd' ufo
+
+spawnUfoBullet :: StdGen -> Ufo -> (Bullet, StdGen)
+spawnUfoBullet rnd ufo = (makeBullet (position ufo) (0, 0) theta, rnd')
+    where
+        (theta, rnd') = randomR (0, 2*pi) rnd
+
+-- Updating miscellaneous
 
 updateElapsedTime :: Time -> World -> World
 updateElapsedTime dt world@World{ elapsedTime } = world{ elapsedTime=elapsedTime + dt }
 
 updateBullets :: Float -> World -> World
-updateBullets dt w@World{ bullets } = w{ bullets=filter (not . isExpired) $ map (update dt) bullets }
+updateBullets dt w@World{ bullets } = w{ bullets=filter (not . isExpired) $ updateAll dt bullets }
 
 updateGameState :: Float -> World -> World
 updateGameState _ w@World{ player }

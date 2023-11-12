@@ -1,5 +1,5 @@
 module Types (Time, Score, Vector, Point, Body(..), Drawable(..), GameState(..), isCollision, isCollisions) where
-import Graphics.Gloss (Picture)
+import Graphics.Gloss (Picture (Pictures))
 
 type Time = Float
 type Score = Int
@@ -15,6 +15,9 @@ class Body a where
     size :: a -> Float
     update :: Time -> a -> a
 
+    updateAll :: Time -> [a] -> [a]
+    updateAll dt = map (update dt)
+
 -- Simple collision detection
 isCollision :: (Body a, Body b) => a -> b -> Bool
 isCollision a b = d < s
@@ -29,4 +32,7 @@ isCollisions a = any (isCollision a)
 
 class Drawable a where
     draw :: a -> Picture
+
+    drawAll :: [a] -> Picture
+    drawAll xs = Pictures $ map draw xs
 

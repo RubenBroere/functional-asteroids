@@ -30,6 +30,7 @@ library
       Kinematics
       Player
       Renderer
+      Spawning
       Sprites
       Types
       Ufo
