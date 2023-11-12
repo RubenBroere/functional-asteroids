@@ -1,4 +1,4 @@
-module Ufo (Ufo, AimTarget(..), generateUfo, moveToTargets, ufoShoot, ufoIsReloading) where
+module Ufo (Ufo, AimTarget(..), generateUfo, moveToTargets, ufoShoot, ufoIsReloading, isSmart) where
 
 import Kinematics
 import Types
@@ -7,6 +7,7 @@ import Spawning
 
 import Graphics.Gloss hiding(Vector)
 import System.Random (StdGen)
+import Sprites
 
 data Ufo = Ufo
     { aimTarget     :: AimTarget
@@ -15,18 +16,18 @@ data Ufo = Ufo
     , targetLocation :: Vector
     }
 
-data AimTarget = TargetForward | TargetPlayer
+data AimTarget = Random | TargetPlayer
     deriving (Eq)
 
 instance Body Ufo where
     position = position . kinematics
     velocity = velocity . kinematics
-    update dt ufo = ufo{ kinematics=update dt $ kinematics ufo, reloading=max 0 $ reloading ufo - dt * 100 }
-    size Ufo{ aimTarget=TargetPlayer } = 20 
-    size _ = 35 
+    update dt ufo = ufo{ kinematics=update dt $ kinematics ufo, reloading=max 0 $ reloading ufo - dt }
+    size _ = 20
 
 instance Drawable Ufo where
-    draw ufo = translateBody ufo $ Color yellow $ Circle $ size ufo
+    draw ufo@Ufo{ aimTarget=TargetPlayer } = translateBody ufo $ Color blue ufoSprite
+    draw ufo = translateBody ufo $ Color yellow ufoSprite
 
 generateUfo :: (Int, Int) -> StdGen -> AimTarget -> (Ufo, StdGen)
 generateUfo screenSize rnd target = (Ufo{ aimTarget=target, kinematics=kin, reloading=0, targetLocation=location }, rnd2)
@@ -53,8 +54,10 @@ moveToTargets worldSize rnd = foldr (\ufo (ufos', rnd') ->
     let (ufo', rnd'') = moveToTarget worldSize rnd' ufo in (ufo':ufos', rnd'')) ([], rnd)
 
 ufoShoot :: Ufo -> Ufo
-ufoShoot u = u{ reloading=150 }
+ufoShoot u = u{ reloading=1 }
 
 ufoIsReloading :: Ufo -> Bool
 ufoIsReloading u = reloading u > 0
 
+isSmart :: Ufo -> Bool
+isSmart = (TargetPlayer==) . aimTarget

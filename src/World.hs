@@ -2,7 +2,7 @@
 module World (World, makeWorld, updateWorld, handleEvents, gameOver, currentScore) where
 
 import System.Random hiding (split)
-import Graphics.Gloss
+import Graphics.Gloss hiding (Vector)
 
 import Player
 import Types
@@ -10,7 +10,7 @@ import InputHandler
 import Asteroid
 import Bullet
 import Ufo
-import Graphics.Gloss.Interface.IO.Game
+import Graphics.Gloss.Interface.IO.Game hiding (Vector)
 import Renderer
 import Sprites
 import Explosion
@@ -78,7 +78,7 @@ drawHud w = Pictures
         scoreText = Translate 10 (-60) $ Scale 0.2 0.2 $ Color white $ Text $ show $ score w
 
 drawLives :: Int -> Picture
-drawLives lives = Color white $ Pictures [Translate (15 + fromIntegral x*20) (-60) $ Scale 0.5 0.5 playerSprite | x <- [0..(lives-1)]]
+drawLives lives = Color white $ Pictures [Translate (-15 - fromIntegral x*20) (-20) $ Scale 0.5 0.5 playerSprite | x <- [0..(lives-1)]]
 
 drawBanner :: String -> Picture
 drawBanner str = Translate 10 20 $ Color white $ Scale 0.5 0.5 $ Text str
@@ -88,7 +88,7 @@ drawBanner str = Translate 10 20 $ Color white $ Scale 0.5 0.5 $ Text str
 updateWorld :: Time -> World -> World
 updateWorld _ w@World{ gameState=Paused } = w
 updateWorld _ w@World{ gameState=GameOver } = w
-updateWorld dt world = updateSteps dt world 
+updateWorld dt world = updateSteps dt world
     [ applyInput
     , updatePlayer
     , updateAsteroids
@@ -212,10 +212,13 @@ updateUfos dt = ufoShooting . killHitUfos . handleUfoSpawning . updateUfoPositio
 
 handleUfoSpawning :: World -> World
 handleUfoSpawning w
-    | length (ufos w) < 2 && elapsedTime w > 10 = w{ ufos=ufo:ufos w, stdGen=gen2 }
+    | null (ufos w) && elapsedTime w > 10 = w{ ufos=ufo:ufos w, stdGen=gen }
+    | length (ufos w) < 2 && elapsedTime w > 30 = w{ ufos=ufo:ufos w, stdGen=gen }
+    | length (ufos w) < 2 && elapsedTime w > 50 = w{ ufos=ufoS:ufos w, stdGen=genS }
     | otherwise = w
     where
-        (ufo, gen2) = generateUfo (worldSize w) (stdGen w) TargetPlayer
+        (ufo, gen) = generateUfo (worldSize w) (stdGen w) Random
+        (ufoS, genS) = generateUfo (worldSize w) (stdGen w) TargetPlayer
 
 updateUfoPositions :: Time -> World -> World
 updateUfoPositions dt w = w{ ufos=ufos', stdGen=rnd' }
@@ -240,12 +243,18 @@ ufoShooting w = w{ bullets=newBullets ++ bullets w, stdGen=rnd, ufos=ufos' }
             | ufoIsReloading ufo = (bullets', rnd')
             | otherwise = (bullet:bullets', rnd'')
             where
-                (bullet, rnd'') = spawnUfoBullet rnd' ufo
+                (bullet, rnd'') = spawnUfoBullet (position $ player w) rnd' ufo
 
-spawnUfoBullet :: StdGen -> Ufo -> (Bullet, StdGen)
-spawnUfoBullet rnd ufo = (makeBullet False (position ufo) (0, 0) theta, rnd')
+spawnUfoBullet :: Vector -> StdGen -> Ufo -> (Bullet, StdGen)
+spawnUfoBullet (tx, ty) rnd ufo 
+    | isSmart ufo = (makeBullet False (position ufo) (0, 0) smartTheta, rnd'')
+    | otherwise = (makeBullet False (position ufo) (0, 0) theta, rnd')
     where
         (theta, rnd') = randomR (0, 2*pi) rnd
+        (x, y) = position ufo
+        angle = atan2 (tx - x) (ty - y)
+        (smartTheta, rnd'') = randomR (angle - deviance, angle + deviance) rnd
+        deviance = 0.2
 
 -- Updating miscellaneous
 

@@ -44,7 +44,7 @@ isGarbage _ _ = False
 canSpawnMore :: [Asteroid] -> Bool
 canSpawnMore = (< maxLargeSpawns) . length . filter ((== Large) . asteroidSize)
     where
-        maxLargeSpawns = 2
+        maxLargeSpawns = 3
 
 isInBounds :: (Int, Int) -> Asteroid -> Bool
 isInBounds screen a = isBounds screen (position a) 
