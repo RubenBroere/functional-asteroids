@@ -21,8 +21,9 @@ data AimTarget = TargetForward | TargetPlayer
 instance Body Ufo where
     position = position . kinematics
     velocity = velocity . kinematics
-    update dt ufo = ufo{ kinematics=update dt $ kinematics ufo, reloading=max 0 $ reloading ufo - dt }
-    size _ = 20
+    update dt ufo = ufo{ kinematics=update dt $ kinematics ufo, reloading=max 0 $ reloading ufo - dt * 100 }
+    size Ufo{ aimTarget=TargetPlayer } = 20 
+    size _ = 35 
 
 instance Drawable Ufo where
     draw ufo = translateBody ufo $ Color yellow $ Circle $ size ufo
@@ -45,14 +46,15 @@ moveToTarget screenSize rnd ufo
         (ux, uy) = (dx / d, dy / d)
         v = (ux * speed, uy * speed)
         (newTarget, rnd') = randomPosition screenSize rnd
-        speed = 100
+        speed = 200
 
 moveToTargets :: (Int, Int) -> StdGen -> [Ufo] -> ([Ufo], StdGen)
 moveToTargets worldSize rnd = foldr (\ufo (ufos', rnd') ->
     let (ufo', rnd'') = moveToTarget worldSize rnd' ufo in (ufo':ufos', rnd'')) ([], rnd)
 
 ufoShoot :: Ufo -> Ufo
-ufoShoot u = u{ reloading=50 }
+ufoShoot u = u{ reloading=150 }
 
 ufoIsReloading :: Ufo -> Bool
 ufoIsReloading u = reloading u > 0
+

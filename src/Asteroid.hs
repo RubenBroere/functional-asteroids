@@ -20,7 +20,6 @@ instance Body Asteroid where
     size = getAsteroidSize
     update dt a = a{ kinematics=updateKinematics dt (kinematics a) } 
 
-
 instance Drawable Asteroid where
     draw asteroid = translateBody asteroid $ Color white $ Circle $ getAsteroidSize asteroid
 

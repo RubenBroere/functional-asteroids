@@ -1,5 +1,5 @@
 {-# LANGUAGE NamedFieldPuns #-}
-module Bullet (Bullet, makeBullet, isExpired) where
+module Bullet (Bullet, makeBullet, isExpired, isPlayerBullet) where
 
 import Types
 import Kinematics
@@ -10,6 +10,7 @@ import Renderer
 data Bullet = Bullet
     { lifeTime         :: Time
     , kinematics :: KinematicInfo
+    , isPlayer :: Bool
     }
 
 instance Body Bullet where
@@ -21,9 +22,9 @@ instance Body Bullet where
 instance Drawable Bullet where
     draw b = translateBody b $ Color white $ circleSolid 2
 
-makeBullet :: Vector -> Vector -> Float -> Bullet
-makeBullet pos vel angle =
-    Bullet {lifeTime=30, kinematics=setVelocity bulletVel $ makeKinematics bulletPos} 
+makeBullet :: Bool -> Vector -> Vector -> Float -> Bullet
+makeBullet player pos vel angle =
+    Bullet {lifeTime=30, kinematics=setVelocity bulletVel $ makeKinematics bulletPos, isPlayer=player }
     where
         bulletVel = calcVelocity angle vel
         bulletPos = calcPosition angle pos
@@ -36,6 +37,9 @@ updateBullet dt bullet@Bullet{ kinematics, lifeTime } =
 
 isExpired :: Bullet -> Bool
 isExpired = (== 0) . lifeTime
+
+isPlayerBullet :: Bullet -> Bool
+isPlayerBullet = isPlayer
 
 calcVelocity :: Float -> Vector -> Vector 
 calcVelocity angle (dx, dy) = (dx + baseVelocity * sin angle, dy + baseVelocity * cos angle)
